@@ -1,0 +1,58 @@
+---
+- name: 1.Check if EPEL repo is already configured.
+  stat: path={{ epel_repofile_path }}
+  register: epel_repofile_result
+ 
+- name: 2.Install EPEL repo.
+  yum:
+    name: "{{ epel_repo_url }}"
+    state: present
+  register: result
+  when: not epel_repofile_result.stat.exists
+ 
+- name: 3.Import EPEL GPG key.
+  rpm_key:
+    key: "{{ epel_repo_gpg_key_url }}"
+    state: present
+  when: not epel_repofile_result.stat.exists
+
+- name: 4. Install OpenVPN client
+  yum:
+    name: openvpn
+    state: latest
+  
+- selinux:
+    state: disabled
+  
+- name: 5. Deploy OpenVPN
+  template:
+    src: client.j2
+    dest: "/etc/openvpn/client.conf"
+    
+- name: 6. Deploy OpenVPN cert
+  template:
+    src: server.j2
+    dest: "/etc/openvpn/server.crt"
+    
+- name: 7. Deploy OpenVPN auth
+  template:
+    src: auth.j2
+    dest: "/etc/openvpn/auth.cfg" 
+    
+- name: 8. OpenVPN service
+  service: name=openvpn@client.service state=restarted enabled=yes
+  
+# - name: LAN magic
+  # shell: firewall-cmd --zone=trusted --add-interface=tun0   
+# - name: LAN magic
+  # shell: echo 1 > /proc/sys/net/ipv4/ip_forward  
+# - name: LAN magic
+  # shell: ip addr flush dev tap0  
+# - name: LAN magic
+  # shell: ip route add 192.168.1.0/24 via {{ lanip }}
+# - name: 9. OpenVPN service
+  # service: name=openvpn@client.service state=restarted enabled=yes  
+  #ip addr flush dev tap0
+  # ip route add 192.168.1.0/24 via 192.168.1.42
+  # firewall-cmd --zone=trusted --add-interface=tun0
+  # echo 1 > /proc/sys/net/ipv4/ip_forward
